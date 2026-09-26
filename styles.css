@@ -354,8 +354,7 @@ button:focus-visible {
 .reset-view:hover { background: #fff; }
 
 .start,
-.finish,
-.rotate-gate {
+.finish {
   position: fixed;
   inset: 0;
   z-index: 5;
@@ -370,8 +369,7 @@ button:focus-visible {
   backdrop-filter: blur(7px);
 }
 
-.card,
-.rotate-card {
+.card {
   width: min(440px, 100%);
   padding: 32px 32px 26px;
   border-radius: 28px;
@@ -379,8 +377,7 @@ button:focus-visible {
   box-shadow: 0 30px 70px rgba(20, 40, 50, 0.18);
 }
 
-.card h2,
-.rotate-card h2 {
+.card h2 {
   margin: 0;
   font-family: "Cormorant Garamond", Georgia, serif;
   font-size: clamp(2.4rem, 6vw, 3.3rem);
@@ -389,8 +386,7 @@ button:focus-visible {
   letter-spacing: -0.03em;
 }
 
-.card-copy,
-.rotate-card p {
+.card-copy {
   margin: 12px 0 0;
   color: #3f3a34;
   font-size: 1rem;
@@ -406,32 +402,13 @@ button:focus-visible {
 
 .rules li + li { margin-top: 8px; }
 
-.rotate-gate {
-  display: none;
-  z-index: 8;
-  background: #d7ebf3;
-}
-
-.rotate-card { text-align: center; }
-
-.rotate-phone {
-  width: 46px;
-  height: 76px;
-  margin: 0 auto 18px;
-  border: 3px solid var(--ink);
-  border-radius: 10px;
-  position: relative;
-}
-
-.rotate-phone::after {
-  content: "";
-  position: absolute;
-  left: 14px;
-  bottom: 8px;
-  width: 14px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--ink);
+.pinch-hint {
+  margin: 10px 0 0;
+  color: #16323c;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
 .rise { animation: rise 0.35s ease; }
@@ -441,19 +418,32 @@ button:focus-visible {
   to { transform: none; }
 }
 
-@media (pointer: coarse) and (orientation: portrait) and (max-width: 700px) {
-  .rotate-gate { display: grid; }
+@media (max-width: 700px) {
+  .prompt {
+    top: calc(max(10px, env(safe-area-inset-top)) + 72px);
+    width: calc(100% - 28px);
+  }
+
+  .state-name { font-size: 1.7rem; }
+
+  .stars {
+    grid-template-columns: repeat(10, 11px);
+    gap: 2px 3px;
+  }
+
+  .star { width: 11px; height: 11px; }
 }
 
 @media (max-height: 520px) {
   .state-name { font-size: 1.35rem; }
-  .prompt { width: min(320px, calc(100% - 220px)); }
+  .prompt {
+    top: max(14px, env(safe-area-inset-top));
+    width: min(320px, calc(100% - 220px));
+  }
   .stars { grid-template-columns: repeat(10, 11px); gap: 3px; }
   .star { width: 11px; height: 11px; }
-  .card,
-  .rotate-card { padding: 20px 20px 16px; }
-  .card h2,
-  .rotate-card h2 { font-size: 2rem; }
+  .card { padding: 20px 20px 16px; }
+  .card h2 { font-size: 2rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

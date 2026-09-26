@@ -92,6 +92,12 @@ class MapViewport {
 
   attach() {
     this.svg.addEventListener("wheel", (event) => this.onWheel(event), { passive: false });
+    this.svg.addEventListener("touchmove", (event) => {
+      if (event.touches.length > 1) {
+        event.preventDefault();
+      }
+    }, { passive: false });
+    this.svg.addEventListener("gesturestart", (event) => event.preventDefault());
     this.svg.addEventListener("pointerdown", (event) => this.onDown(event));
     this.svg.addEventListener("pointermove", (event) => this.onMove(event));
     this.svg.addEventListener("pointerup", (event) => this.onUp(event));
@@ -258,6 +264,8 @@ class StateQuiz {
     this.missedChipsEl = document.querySelector("#missed-chips");
     this.hoverNameEl = document.querySelector("#hover-name");
     this.resetButton = document.querySelector("#reset-view");
+    this.pinchHint = document.querySelector("#pinch-hint");
+    this.pinchHintTimer = 0;
     this.features = [];
     this.order = [];
     this.pips = [];
@@ -291,6 +299,9 @@ class StateQuiz {
     document.querySelector("#start").addEventListener("click", () => this.start());
     document.querySelector("#replay").addEventListener("click", () => this.start());
     this.resetButton.addEventListener("click", () => this.viewport.reset());
+    const dismissPinchHint = () => this.hidePinchHint();
+    this.mapSvg.node().addEventListener("pointerdown", dismissPinchHint);
+    this.mapSvg.node().addEventListener("wheel", dismissPinchHint);
   }
 
   measure(features) {
@@ -372,7 +383,20 @@ class StateQuiz {
       this.viewport.reset();
     }
     this.showCurrent();
+    this.showPinchHint();
     this.timerId = window.setInterval(() => this.tick(), 200);
+  }
+
+  showPinchHint() {
+    this.pinchHint.hidden = false;
+    window.clearTimeout(this.pinchHintTimer);
+    this.pinchHintTimer = window.setTimeout(() => this.hidePinchHint(), 5000);
+  }
+
+  hidePinchHint() {
+    this.pinchHint.hidden = true;
+    window.clearTimeout(this.pinchHintTimer);
+    this.pinchHintTimer = 0;
   }
 
   stopTimer() {
@@ -501,6 +525,7 @@ class StateQuiz {
         this.missedChipsEl.appendChild(chip);
       });
     }
+    this.hidePinchHint();
     this.finishOverlay.hidden = false;
     document.querySelector("#replay").focus();
   }
