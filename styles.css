@@ -372,6 +372,15 @@ button:hover { background: #322c27; }
   flex: 1 1 140px;
 }
 
+.choices.maps {
+  flex-direction: column;
+}
+
+.choices.maps button {
+  flex: none;
+  width: 100%;
+}
+
 .button-quiet {
   background: transparent;
   color: var(--ink);
@@ -395,6 +404,7 @@ button:focus-visible {
   display: grid;
   place-items: center;
   padding: 24px;
+  overflow: auto;
 }
 
 .start,

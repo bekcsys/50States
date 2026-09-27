@@ -53,52 +53,115 @@ const STATE_NAMES = {
   "56": "Wyoming"
 };
 
-const EUROPE_NAMES = {
-  "008": "Albania",
+const WEST_NAMES = {
   "020": "Andorra",
   "040": "Austria",
-  "112": "Belarus",
   "056": "Belgium",
+  "208": "Denmark",
+  "246": "Finland",
+  "250": "France",
+  "276": "Germany",
+  "352": "Iceland",
+  "372": "Ireland",
+  "380": "Italy",
+  "438": "Liechtenstein",
+  "442": "Luxembourg",
+  "470": "Malta",
+  "528": "Netherlands",
+  "578": "Norway",
+  "620": "Portugal",
+  "674": "San Marino",
+  "724": "Spain",
+  "752": "Sweden",
+  "756": "Switzerland",
+  "826": "United Kingdom"
+};
+
+const EAST_NAMES = {
+  "008": "Albania",
+  "112": "Belarus",
   "070": "Bosnia and Herzegovina",
   "100": "Bulgaria",
   "191": "Croatia",
   "196": "Cyprus",
   "203": "Czechia",
-  "208": "Denmark",
   "233": "Estonia",
-  "246": "Finland",
-  "250": "France",
-  "276": "Germany",
   "300": "Greece",
   "348": "Hungary",
-  "352": "Iceland",
-  "372": "Ireland",
-  "380": "Italy",
   "383": "Kosovo",
   "428": "Latvia",
-  "438": "Liechtenstein",
   "440": "Lithuania",
-  "442": "Luxembourg",
-  "470": "Malta",
   "498": "Moldova",
   "499": "Montenegro",
-  "528": "Netherlands",
   "807": "North Macedonia",
-  "578": "Norway",
   "616": "Poland",
-  "620": "Portugal",
   "642": "Romania",
   "643": "Russia",
-  "674": "San Marino",
   "688": "Serbia",
   "703": "Slovakia",
   "705": "Slovenia",
-  "724": "Spain",
-  "752": "Sweden",
-  "756": "Switzerland",
   "792": "Turkey",
-  "804": "Ukraine",
-  "826": "United Kingdom"
+  "804": "Ukraine"
+};
+
+const EUROPE_NAMES = { ...WEST_NAMES, ...EAST_NAMES };
+
+const AFRICA_NAMES = {
+  "012": "Algeria",
+  "024": "Angola",
+  "204": "Benin",
+  "072": "Botswana",
+  "854": "Burkina Faso",
+  "108": "Burundi",
+  "132": "Cabo Verde",
+  "120": "Cameroon",
+  "140": "Central African Republic",
+  "148": "Chad",
+  "174": "Comoros",
+  "178": "Republic of the Congo",
+  "384": "Côte d'Ivoire",
+  "180": "Democratic Republic of the Congo",
+  "262": "Djibouti",
+  "818": "Egypt",
+  "226": "Equatorial Guinea",
+  "232": "Eritrea",
+  "748": "Eswatini",
+  "231": "Ethiopia",
+  "266": "Gabon",
+  "270": "The Gambia",
+  "288": "Ghana",
+  "324": "Guinea",
+  "624": "Guinea-Bissau",
+  "404": "Kenya",
+  "426": "Lesotho",
+  "430": "Liberia",
+  "434": "Libya",
+  "450": "Madagascar",
+  "454": "Malawi",
+  "466": "Mali",
+  "478": "Mauritania",
+  "480": "Mauritius",
+  "504": "Morocco",
+  "508": "Mozambique",
+  "516": "Namibia",
+  "562": "Niger",
+  "566": "Nigeria",
+  "646": "Rwanda",
+  "678": "São Tomé and Príncipe",
+  "686": "Senegal",
+  "690": "Seychelles",
+  "694": "Sierra Leone",
+  "706": "Somalia",
+  "710": "South Africa",
+  "728": "South Sudan",
+  "729": "Sudan",
+  "834": "Tanzania",
+  "768": "Togo",
+  "788": "Tunisia",
+  "800": "Uganda",
+  "732": "Western Sahara",
+  "894": "Zambia",
+  "716": "Zimbabwe"
 };
 
 const QUIZ_COPY = {
@@ -110,41 +173,99 @@ const QUIZ_COPY = {
     maxZoom: 8,
     topPad: 0
   },
-  europe: {
+  west: {
     kicker: "Click this country",
-    mapLabel: "Map of Europe",
-    title: "Europe — Countries Quiz",
+    mapLabel: "Map of Western Europe",
+    title: "Western Europe — Countries Quiz",
     foundAll: "Every country found",
     maxZoom: 20,
+    topPad: 110
+  },
+  east: {
+    kicker: "Click this country",
+    mapLabel: "Map of Eastern Europe",
+    title: "Eastern Europe — Countries Quiz",
+    foundAll: "Every country found",
+    maxZoom: 20,
+    topPad: 110
+  },
+  africa: {
+    kicker: "Click this country",
+    mapLabel: "Map of Africa",
+    title: "Africa — Countries Quiz",
+    foundAll: "Every country found",
+    maxZoom: 24,
     topPad: 110
   }
 };
 
-function europeProjection() {
-  const width = 1000;
-  const height = 760;
+function regionProjection(features, options = {}) {
+  const inside = options.inside || inEurope;
+  const projection = options.projection
+    ? options.projection()
+    : d3.geoConicConformal().parallels([40, 64]);
+  let west = 180;
+  let south = 90;
+  let east = -180;
+  let north = -90;
+  features.forEach((feature) => {
+    visitCoordinates(feature.geometry, (longitude, latitude) => {
+      if (!inside(longitude, latitude)) {
+        return;
+      }
+      west = Math.min(west, longitude);
+      east = Math.max(east, longitude);
+      south = Math.min(south, latitude);
+      north = Math.max(north, latitude);
+    });
+  });
   const frame = {
     type: "MultiPoint",
-    coordinates: [[-25, 33.2], [44.5, 33.2], [44.5, 71.3], [-25, 71.3]]
+    coordinates: [
+      [west - 2.4, south - 1.6],
+      [east + 2.4, south - 1.6],
+      [east + 2.4, north + 1.4],
+      [west - 2.4, north + 1.4]
+    ]
   };
-  const projection = d3.geoConicConformal().parallels([40, 64]).rotate([-14, 0]);
-  projection.fitExtent([[20, 20], [width - 20, height - 20]], frame);
+  const width = 1000;
+  const height = 760;
+  projection.rotate([-(west + east) / 2, 0]);
+  projection.fitExtent([[28, 28], [width - 28, height - 28]], frame);
   projection.clipExtent([[0, 0], [width, height]]);
   return projection;
+}
+
+function visitCoordinates(geometry, visit) {
+  if (!geometry) {
+    return;
+  }
+  const dig = (node) => {
+    if (typeof node[0] === "number") {
+      visit(node[0], node[1]);
+      return;
+    }
+    node.forEach(dig);
+  };
+  dig(geometry.coordinates);
 }
 
 function inEurope(longitude, latitude) {
   return longitude >= -24 && longitude <= 46 && latitude >= 34 && latitude <= 72;
 }
 
-function europeanShape(feature) {
+function inAfrica(longitude, latitude) {
+  return longitude >= -26 && longitude <= 60 && latitude >= -36 && latitude <= 38;
+}
+
+function keepWithin(feature, inside) {
   const geometry = feature.geometry;
   if (!geometry || geometry.type !== "MultiPolygon") {
     return feature;
   }
   const kept = geometry.coordinates.filter((polygon) => {
     const centroid = d3.geoCentroid({ type: "Polygon", coordinates: polygon });
-    return inEurope(centroid[0], centroid[1]);
+    return inside(centroid[0], centroid[1]);
   });
   if (kept.length === 0) {
     return feature;
@@ -398,24 +519,42 @@ class StateQuiz {
   }
 
   async load() {
-    if (!window.US_ATLAS || !window.EUROPE_ATLAS) {
+    if (!window.US_ATLAS || !window.EUROPE_ATLAS || !window.AFRICA_ATLAS) {
       throw new Error("Map data failed to load");
     }
     const states = this.featuresFrom(window.US_ATLAS, "states", STATE_NAMES);
-    const countries = this.featuresFrom(window.EUROPE_ATLAS, "countries", EUROPE_NAMES).map(europeanShape);
+    const countries = this.featuresFrom(window.EUROPE_ATLAS, "countries", EUROPE_NAMES)
+      .map((feature) => keepWithin(feature, inEurope));
+    const west = countries.filter((feature) => WEST_NAMES[feature.id]);
+    const east = countries.filter((feature) => EAST_NAMES[feature.id]);
+    const africa = this.featuresFrom(window.AFRICA_ATLAS, "countries", AFRICA_NAMES)
+      .map((feature) => keepWithin(feature, inAfrica));
     if (states.length !== 50) {
       throw new Error("Expected 50 states");
     }
-    if (countries.length !== Object.keys(EUROPE_NAMES).length) {
+    if (west.length !== Object.keys(WEST_NAMES).length || east.length !== Object.keys(EAST_NAMES).length) {
       throw new Error("Europe map is incomplete");
     }
+    if (africa.length !== Object.keys(AFRICA_NAMES).length) {
+      throw new Error("Africa map is incomplete");
+    }
+    const africaProjection = () => d3.geoConicEqualArea().parallels([-18, 20]);
     this.catalog = {
       states: { ...QUIZ_COPY.states, names: STATE_NAMES, features: states, path: d3.geoPath() },
-      europe: { ...QUIZ_COPY.europe, names: EUROPE_NAMES, features: countries, path: d3.geoPath(europeProjection()) }
+      west: { ...QUIZ_COPY.west, names: WEST_NAMES, features: west, path: d3.geoPath(regionProjection(west)) },
+      east: { ...QUIZ_COPY.east, names: EAST_NAMES, features: east, path: d3.geoPath(regionProjection(east)) },
+      africa: {
+        ...QUIZ_COPY.africa,
+        names: AFRICA_NAMES,
+        features: africa,
+        path: d3.geoPath(regionProjection(africa, { inside: inAfrica, projection: africaProjection }))
+      }
     };
     this.useQuiz("states");
     document.querySelector("#start-states").addEventListener("click", () => this.play("states"));
-    document.querySelector("#start-europe").addEventListener("click", () => this.play("europe"));
+    document.querySelector("#start-west").addEventListener("click", () => this.play("west"));
+    document.querySelector("#start-east").addEventListener("click", () => this.play("east"));
+    document.querySelector("#start-africa").addEventListener("click", () => this.play("africa"));
     document.querySelector("#replay").addEventListener("click", () => this.start());
     document.querySelector("#change-map").addEventListener("click", () => this.showChooser());
     this.resetButton.addEventListener("click", () => this.viewport.reset());
@@ -558,8 +697,9 @@ class StateQuiz {
   }
 
   addLabel(id, status) {
+    const labelRegion = this.quizKey !== "states";
     const labelMissedState = this.quizKey === "states" && status === "missed";
-    if (this.quizKey !== "europe" && !labelMissedState) {
+    if (!labelRegion && !labelMissedState) {
       return;
     }
     const feature = this.features.find((item) => item.id === id);
@@ -803,7 +943,8 @@ class StateQuiz {
 
 document.addEventListener("DOMContentLoaded", () => {
   const quiz = new StateQuiz();
-  quiz.load().catch(() => {
+  quiz.load().catch((error) => {
+    console.error(error);
     document.querySelector("#state-name").textContent = "The map could not be loaded";
   });
 });
