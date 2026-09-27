@@ -53,6 +53,113 @@ const STATE_NAMES = {
   "56": "Wyoming"
 };
 
+const EUROPE_NAMES = {
+  "008": "Albania",
+  "020": "Andorra",
+  "040": "Austria",
+  "112": "Belarus",
+  "056": "Belgium",
+  "070": "Bosnia and Herzegovina",
+  "100": "Bulgaria",
+  "191": "Croatia",
+  "196": "Cyprus",
+  "203": "Czechia",
+  "208": "Denmark",
+  "233": "Estonia",
+  "246": "Finland",
+  "250": "France",
+  "276": "Germany",
+  "300": "Greece",
+  "348": "Hungary",
+  "352": "Iceland",
+  "372": "Ireland",
+  "380": "Italy",
+  "383": "Kosovo",
+  "428": "Latvia",
+  "438": "Liechtenstein",
+  "440": "Lithuania",
+  "442": "Luxembourg",
+  "470": "Malta",
+  "498": "Moldova",
+  "499": "Montenegro",
+  "528": "Netherlands",
+  "807": "North Macedonia",
+  "578": "Norway",
+  "616": "Poland",
+  "620": "Portugal",
+  "642": "Romania",
+  "643": "Russia",
+  "674": "San Marino",
+  "688": "Serbia",
+  "703": "Slovakia",
+  "705": "Slovenia",
+  "724": "Spain",
+  "752": "Sweden",
+  "756": "Switzerland",
+  "792": "Turkey",
+  "804": "Ukraine",
+  "826": "United Kingdom"
+};
+
+const QUIZ_COPY = {
+  states: {
+    kicker: "Click this state",
+    mapLabel: "Map of the United States",
+    title: "Fifty — US States Quiz",
+    foundAll: "Every state found",
+    maxZoom: 8,
+    topPad: 0
+  },
+  europe: {
+    kicker: "Click this country",
+    mapLabel: "Map of Europe",
+    title: "Europe — Countries Quiz",
+    foundAll: "Every country found",
+    maxZoom: 20,
+    topPad: 110
+  }
+};
+
+function europeProjection() {
+  const width = 1000;
+  const height = 760;
+  const frame = {
+    type: "MultiPoint",
+    coordinates: [[-25, 33.2], [44.5, 33.2], [44.5, 71.3], [-25, 71.3]]
+  };
+  const projection = d3.geoConicConformal().parallels([40, 64]).rotate([-14, 0]);
+  projection.fitExtent([[20, 20], [width - 20, height - 20]], frame);
+  projection.clipExtent([[0, 0], [width, height]]);
+  return projection;
+}
+
+function inEurope(longitude, latitude) {
+  return longitude >= -24 && longitude <= 46 && latitude >= 34 && latitude <= 72;
+}
+
+function europeanShape(feature) {
+  const geometry = feature.geometry;
+  if (!geometry || geometry.type !== "MultiPolygon") {
+    return feature;
+  }
+  const kept = geometry.coordinates.filter((polygon) => {
+    const centroid = d3.geoCentroid({ type: "Polygon", coordinates: polygon });
+    return inEurope(centroid[0], centroid[1]);
+  });
+  if (kept.length === 0) {
+    return feature;
+  }
+  return {
+    type: feature.type,
+    id: feature.id,
+    properties: feature.properties,
+    geometry: {
+      type: kept.length === 1 ? "Polygon" : "MultiPolygon",
+      coordinates: kept.length === 1 ? kept[0] : kept
+    }
+  };
+}
+
 function shuffle(items) {
   const copy = items.slice();
   for (let index = copy.length - 1; index > 0; index -= 1) {
@@ -77,10 +184,11 @@ function formatClock(milliseconds) {
 }
 
 class MapViewport {
-  constructor(svg, view, onChange) {
+  constructor(svg, view, onChange, maxZoom = 8) {
     this.svg = svg;
     this.base = view;
     this.onChange = onChange;
+    this.maxZoom = maxZoom;
     this.pointers = new Map();
     this.moved = false;
     this.suppressClick = false;
@@ -116,6 +224,11 @@ class MapViewport {
     this.apply();
   }
 
+  setBase(view) {
+    this.base = view;
+    this.reset();
+  }
+
   isZoomed() {
     return this.w < this.base.w * 0.98;
   }
@@ -134,7 +247,7 @@ class MapViewport {
     const py = (clientY - rect.top) / rect.height;
     const anchorX = this.x + px * this.w;
     const anchorY = this.y + py * this.h;
-    const minW = this.base.w / 8;
+    const minW = this.base.w / this.maxZoom;
     const nextW = Math.min(this.base.w, Math.max(minW, this.w * factor));
     const nextH = nextW * (this.base.h / this.base.w);
     this.w = nextW;
@@ -278,40 +391,99 @@ class StateQuiz {
     this.timerId = 0;
     this.path = null;
     this.viewport = null;
+    this.names = STATE_NAMES;
+    this.foundAll = QUIZ_COPY.states.foundAll;
+    this.quizKey = "";
+    this.catalog = null;
   }
 
   async load() {
-    if (!window.US_ATLAS) {
+    if (!window.US_ATLAS || !window.EUROPE_ATLAS) {
       throw new Error("Map data failed to load");
     }
-    const collection = topojson.feature(window.US_ATLAS, window.US_ATLAS.objects.states);
-    this.features = collection.features.filter((feature) => STATE_NAMES[feature.id]);
-    if (this.features.length !== 50) {
+    const states = this.featuresFrom(window.US_ATLAS, "states", STATE_NAMES);
+    const countries = this.featuresFrom(window.EUROPE_ATLAS, "countries", EUROPE_NAMES).map(europeanShape);
+    if (states.length !== 50) {
       throw new Error("Expected 50 states");
     }
-    this.path = d3.geoPath();
-    const view = this.measure(this.features);
-    this.draw(view);
-    this.viewport = new MapViewport(this.mapSvg.node(), view, (zoomed) => {
-      this.resetButton.hidden = !zoomed;
-    });
-    this.renderPips(Object.keys(STATE_NAMES));
-    document.querySelector("#start").addEventListener("click", () => this.start());
+    if (countries.length !== Object.keys(EUROPE_NAMES).length) {
+      throw new Error("Europe map is incomplete");
+    }
+    this.catalog = {
+      states: { ...QUIZ_COPY.states, names: STATE_NAMES, features: states, path: d3.geoPath() },
+      europe: { ...QUIZ_COPY.europe, names: EUROPE_NAMES, features: countries, path: d3.geoPath(europeProjection()) }
+    };
+    this.useQuiz("states");
+    document.querySelector("#start-states").addEventListener("click", () => this.play("states"));
+    document.querySelector("#start-europe").addEventListener("click", () => this.play("europe"));
     document.querySelector("#replay").addEventListener("click", () => this.start());
+    document.querySelector("#change-map").addEventListener("click", () => this.showChooser());
     this.resetButton.addEventListener("click", () => this.viewport.reset());
     const dismissPinchHint = () => this.hidePinchHint();
     this.mapSvg.node().addEventListener("pointerdown", dismissPinchHint);
     this.mapSvg.node().addEventListener("wheel", dismissPinchHint);
+    window.addEventListener("resize", () => this.layoutLabels());
+  }
+
+  featuresFrom(atlas, objectName, names) {
+    const collection = topojson.feature(atlas, atlas.objects[objectName]);
+    return collection.features.filter((feature) => names[feature.id]);
+  }
+
+  play(key) {
+    this.useQuiz(key);
+    this.start();
+  }
+
+  useQuiz(key) {
+    const quiz = this.catalog[key];
+    this.quizKey = key;
+    this.names = quiz.names;
+    this.features = quiz.features;
+    this.path = quiz.path;
+    this.foundAll = quiz.foundAll;
+    this.topPad = quiz.topPad;
+    const view = this.measure(this.features);
+    this.draw(view);
+    const onView = (zoomed) => {
+      this.resetButton.hidden = !zoomed;
+      this.layoutLabels();
+    };
+    if (this.viewport) {
+      this.viewport.maxZoom = quiz.maxZoom;
+      this.viewport.onChange = onView;
+      this.viewport.setBase(view);
+    } else {
+      this.viewport = new MapViewport(this.mapSvg.node(), view, onView, quiz.maxZoom);
+    }
+    document.title = quiz.title;
+    this.mapSvg.attr("aria-label", quiz.mapLabel);
+    document.querySelector("#eyebrow").textContent = quiz.kicker;
+    const total = ` / ${quiz.features.length}`;
+    document.querySelectorAll(".place-total").forEach((node) => {
+      node.textContent = total;
+    });
+    this.renderPips(Object.keys(quiz.names));
+  }
+
+  showChooser() {
+    this.active = false;
+    this.locked = true;
+    this.stopTimer();
+    this.hidePinchHint();
+    this.finishOverlay.hidden = true;
+    this.startOverlay.hidden = false;
   }
 
   measure(features) {
     const bounds = this.path.bounds({ type: "FeatureCollection", features });
     const pad = 10;
+    const topPad = this.topPad || 0;
     return {
       x: bounds[0][0] - pad,
-      y: bounds[0][1] - pad,
+      y: bounds[0][1] - pad - topPad,
       w: bounds[1][0] - bounds[0][0] + pad * 2,
-      h: bounds[1][1] - bounds[0][1] + pad * 2
+      h: bounds[1][1] - bounds[0][1] + pad * 2 + topPad
     };
   }
 
@@ -319,14 +491,14 @@ class StateQuiz {
     this.mapSvg.attr("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
     this.mapSvg
       .selectAll("path")
-      .data(this.features)
+      .data(this.features, (feature) => feature.id)
       .join("path")
       .attr("class", "state")
       .attr("data-fips", (feature) => feature.id)
       .attr("d", this.path)
       .attr("role", "button")
       .attr("tabindex", "0")
-      .attr("aria-label", (feature) => STATE_NAMES[feature.id])
+      .attr("aria-label", (feature) => this.names[feature.id])
       .on("click", (event, feature) => {
         if (this.viewport && this.viewport.takeSuppressedClick()) {
           event.preventDefault();
@@ -343,6 +515,102 @@ class StateQuiz {
       })
       .on("pointerenter", (event, feature) => this.setHover(feature.id, true))
       .on("pointerleave", (event, feature) => this.setHover(feature.id, false));
+    this.clearLabels();
+    let labels = this.mapSvg.select("g.country-labels");
+    if (labels.empty()) {
+      labels = this.mapSvg.append("g").attr("class", "country-labels");
+    }
+    this.mapSvg.node().appendChild(labels.node());
+  }
+
+  clearLabels() {
+    this.mapSvg.selectAll(".country-label").remove();
+  }
+
+  largestPart(feature) {
+    const geometry = feature.geometry;
+    if (!geometry || geometry.type === "Polygon") {
+      return feature;
+    }
+    let best = geometry.coordinates[0];
+    let bestArea = -1;
+    geometry.coordinates.forEach((polygon) => {
+      const part = { type: "Feature", geometry: { type: "Polygon", coordinates: polygon } };
+      const area = Math.abs(this.path.area(part));
+      if (area > bestArea) {
+        bestArea = area;
+        best = polygon;
+      }
+    });
+    return { type: "Feature", id: feature.id, geometry: { type: "Polygon", coordinates: best } };
+  }
+
+  labelLines(name) {
+    if (name.length <= 12 || !name.includes(" ")) {
+      return [name];
+    }
+    const words = name.split(" ");
+    if (words.length === 2) {
+      return words;
+    }
+    const mid = Math.ceil(words.length / 2);
+    return [words.slice(0, mid).join(" "), words.slice(mid).join(" ")];
+  }
+
+  addLabel(id, status) {
+    const labelMissedState = this.quizKey === "states" && status === "missed";
+    if (this.quizKey !== "europe" && !labelMissedState) {
+      return;
+    }
+    const feature = this.features.find((item) => item.id === id);
+    if (!feature) {
+      return;
+    }
+    const part = this.largestPart(feature);
+    const point = this.path.centroid(part);
+    if (!point || !Number.isFinite(point[0]) || !Number.isFinite(point[1])) {
+      return;
+    }
+    const bounds = this.path.bounds(part);
+    const width = Math.max(0, bounds[1][0] - bounds[0][0]);
+    const lines = this.labelLines(this.names[id]);
+    const text = this.mapSvg.select("g.country-labels")
+      .append("text")
+      .attr("class", "country-label")
+      .attr("data-fips", id)
+      .attr("data-width", width)
+      .attr("x", point[0])
+      .attr("y", point[1]);
+    if (lines.length === 1) {
+      text.text(lines[0]);
+    } else {
+      lines.forEach((line, index) => {
+        text.append("tspan")
+          .attr("x", point[0])
+          .attr("dy", index === 0 ? "-0.5em" : "1.05em")
+          .text(line);
+      });
+    }
+    this.layoutLabels();
+  }
+
+  layoutLabels() {
+    if (!this.viewport) {
+      return;
+    }
+    const svg = this.mapSvg.node();
+    const transform = svg.getScreenCTM();
+    if (!transform || transform.a === 0) {
+      return;
+    }
+    const pixelsPerUnit = Math.hypot(transform.a, transform.b);
+    this.mapSvg.selectAll(".country-label").each(function () {
+      const text = d3.select(this);
+      const countryWidth = Number(text.attr("data-width")) * pixelsPerUnit;
+      const screen = countryWidth < 52 ? 10 : countryWidth < 96 ? 12 : 14;
+      text.attr("font-size", screen / pixelsPerUnit);
+      text.attr("stroke-width", 2.6 / pixelsPerUnit);
+    });
   }
 
   renderPips(ids) {
@@ -371,6 +639,7 @@ class StateQuiz {
     this.app.classList.add("is-playing");
     this.app.classList.remove("is-finished");
     this.clearColors();
+    this.clearLabels();
     this.renderPips(this.order);
     this.scoreEl.textContent = "0";
     this.timeEl.textContent = "0:00";
@@ -415,7 +684,7 @@ class StateQuiz {
 
   showCurrent() {
     const id = this.order[this.index];
-    this.nameEl.textContent = STATE_NAMES[id];
+    this.nameEl.textContent = this.names[id];
     this.progressEl.textContent = `${this.index + 1} of ${this.order.length}`;
     this.nameEl.classList.remove("rise");
     void this.nameEl.offsetWidth;
@@ -443,7 +712,7 @@ class StateQuiz {
     } else {
       this.setStatus(target, "missed");
       this.flash(fips);
-      this.setFeedback(STATE_NAMES[fips], "is-missed");
+      this.setFeedback(this.names[fips], "is-missed");
     }
 
     const pip = this.pips[this.index];
@@ -465,6 +734,7 @@ class StateQuiz {
       path.classList.remove("is-correct", "is-missed");
       path.classList.add(status === "correct" ? "is-correct" : "is-missed");
     });
+    this.addLabel(fips, status);
   }
 
   flash(fips) {
@@ -481,7 +751,7 @@ class StateQuiz {
     if (!this.app.classList.contains("is-finished")) {
       return;
     }
-    this.hoverNameEl.textContent = hot ? STATE_NAMES[fips] : "";
+    this.hoverNameEl.textContent = hot ? this.names[fips] : "";
     this.hoverNameEl.classList.toggle("is-on", hot);
   }
 
@@ -511,11 +781,11 @@ class StateQuiz {
     this.finalTimeEl.textContent = `Finished in ${formatClock(elapsed)}`;
     const missed = this.order
       .filter((id) => this.status.get(id) === "missed")
-      .map((id) => STATE_NAMES[id])
+      .map((id) => this.names[id])
       .sort((left, right) => left.localeCompare(right));
     this.missedChipsEl.replaceChildren();
     if (missed.length === 0) {
-      this.missedLabelEl.textContent = "Every state found";
+      this.missedLabelEl.textContent = this.foundAll;
     } else {
       this.missedLabelEl.textContent = missed.length === 1 ? "Missed 1" : `Missed ${missed.length}`;
       missed.forEach((name) => {

@@ -14,14 +14,14 @@
     <div class="map-wrap">
       <svg id="map" role="group" aria-label="Map of the United States"></svg>
       <div class="map-hud">
-        <p class="hud-score"><span id="score">0</span><span class="hud-total">/ 50</span></p>
+        <p class="hud-score"><span id="score">0</span><span class="hud-total place-total">/ 50</span></p>
         <p class="hud-time" id="time">0:00</p>
       </div>
       <div class="prompt">
         <p class="hud-kicker" id="eyebrow">Click this state</p>
-        <h1 class="state-name" id="state-name" aria-live="polite">Fifty states</h1>
+        <h1 class="state-name" id="state-name" aria-live="polite">Pick a map</h1>
         <p class="status-line">
-          <span id="progress-copy">One try for each state</span>
+          <span id="progress-copy">One try for each place</span>
           <span class="feedback" id="feedback" aria-live="polite"></span>
         </p>
         <p class="pinch-hint" id="pinch-hint" hidden>Pinch to zoom in</p>
@@ -42,15 +42,18 @@
   <div class="start" id="start-overlay">
     <div class="card">
       <p class="eyebrow">Map quiz</p>
-      <h2>Find all fifty states.</h2>
-      <p class="card-copy">Each state starts grey. A name appears, and you click that state. Right turns green. Wrong turns red.</p>
-      <p class="card-copy">Pinch the map, or scroll, to zoom in on the smaller states.</p>
+      <h2>Pick a map.</h2>
+      <p class="card-copy">Each place starts grey. A name appears, and you click it. Right turns green. Wrong turns red.</p>
+      <p class="card-copy">Pinch the map, or scroll, to zoom in on the smaller places.</p>
       <ul class="rules">
         <li><i class="swatch idle"></i> Grey until you reach it</li>
         <li><i class="swatch correct"></i> Green when you click the right one</li>
         <li><i class="swatch missed"></i> Red when the click is wrong</li>
       </ul>
-      <button type="button" id="start">Start quiz</button>
+      <div class="choices">
+        <button type="button" id="start-states">United States</button>
+        <button type="button" id="start-europe">Europe</button>
+      </div>
     </div>
   </div>
 
@@ -58,18 +61,22 @@
     <div class="card">
       <p class="eyebrow">Finished</p>
       <div class="result-hero">
-        <p class="result-score"><span id="final-score">0</span><span class="of">/ 50</span></p>
+        <p class="result-score"><span id="final-score">0</span><span class="of place-total">/ 50</span></p>
         <p class="result-time" id="final-time">Finished in 0:00</p>
       </div>
       <p class="missed-label" id="missed-label"></p>
       <div class="chips" id="missed-chips"></div>
-      <button type="button" id="replay">Play again</button>
+      <div class="choices">
+        <button type="button" id="replay">Play again</button>
+        <button type="button" id="change-map" class="button-quiet">Change map</button>
+      </div>
     </div>
   </div>
 
   <script src="vendor/d3.min.js"></script>
   <script src="vendor/topojson-client.min.js"></script>
   <script src="data/states.js"></script>
+  <script src="data/europe.js"></script>
   <script src="quiz.js"></script>
 </body>
 </html>
