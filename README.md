@@ -1,6 +1,6 @@
 # Fifty
 
-Fifty is a click-the-map quiz for the US states, Western Europe, Eastern Europe, and Africa. Places start grey, turn green when you are right and red when you miss. Pinch or scroll to zoom. Stars track each answer, and a popup shows your score and time.
+Fifty is a map quiz for the US states, Canada, Central America, South America, Western Europe, Eastern Europe, and Africa. Point and click a place, or spell its name. Right turns green and wrong turns red. Pinch or scroll to zoom. Stars track each answer, and a popup shows your score and time.
 
 ## Run
 

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=13" />
 </head>
 <body>
   <main class="app" id="app">
@@ -20,6 +20,10 @@
       <div class="prompt">
         <p class="hud-kicker" id="eyebrow">Click this state</p>
         <h1 class="state-name" id="state-name" aria-live="polite">Pick a map</h1>
+        <form class="spell-form" id="spell-form" hidden>
+          <input id="spell-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Spelling" />
+          <button type="submit">Check</button>
+        </form>
         <p class="status-line">
           <span id="progress-copy">One try for each place</span>
           <span class="feedback" id="feedback" aria-live="polite"></span>
@@ -28,6 +32,11 @@
       </div>
       <div class="star-dock">
         <div class="stars" id="pips" aria-hidden="true"></div>
+        <p class="flag-slot" id="flag-slot" hidden>
+          <span class="flag-slot-flag" id="flag-slot-flag" aria-hidden="true"></span>
+          <span class="flag-slot-name" id="flag-slot-name"></span>
+        </p>
+        <ul class="progress-list" id="progress-list" hidden></ul>
         <button type="button" id="reset-view" class="reset-view" hidden>Fit map</button>
       </div>
       <p class="hover-name" id="hover-name"></p>
@@ -39,19 +48,28 @@
     </div>
   </main>
 
+  <p class="flag-pop" id="flag-pop" hidden aria-hidden="true"></p>
+
   <div class="start" id="start-overlay">
     <div class="card">
       <p class="eyebrow">Map quiz</p>
       <h2>Pick a map.</h2>
-      <p class="card-copy">Each place starts grey. A name appears, and you click it. Right turns green. Wrong turns red.</p>
+      <p class="card-copy" id="mode-copy">A name appears. Click that place on the map.</p>
+      <div class="choices modes" role="group" aria-label="Game mode">
+        <button type="button" id="mode-click" class="is-selected" aria-pressed="true">Point and click</button>
+        <button type="button" id="mode-spell" aria-pressed="false">Spelling</button>
+      </div>
       <p class="card-copy">Pinch the map, or scroll, to zoom in on the smaller places.</p>
       <ul class="rules">
         <li><i class="swatch idle"></i> Grey until you reach it</li>
-        <li><i class="swatch correct"></i> Green when you click the right one</li>
-        <li><i class="swatch missed"></i> Red when the click is wrong</li>
+        <li><i class="swatch correct"></i> Green when the answer is right</li>
+        <li><i class="swatch missed"></i> Red when the answer is wrong</li>
       </ul>
       <div class="choices maps">
         <button type="button" id="start-states">United States</button>
+        <button type="button" id="start-canada">Canada</button>
+        <button type="button" id="start-central">Central America</button>
+        <button type="button" id="start-south">South America</button>
         <button type="button" id="start-west">Western Europe</button>
         <button type="button" id="start-east">Eastern Europe</button>
         <button type="button" id="start-africa">Africa</button>
@@ -68,6 +86,7 @@
       </div>
       <p class="missed-label" id="missed-label"></p>
       <div class="chips" id="missed-chips"></div>
+      <div class="result-lists" id="result-lists" hidden></div>
       <div class="choices">
         <button type="button" id="replay">Play again</button>
         <button type="button" id="change-map" class="button-quiet">Change map</button>
@@ -80,6 +99,8 @@
   <script src="data/states.js"></script>
   <script src="data/europe.js"></script>
   <script src="data/africa.js"></script>
-  <script src="quiz.js?v=4"></script>
+  <script src="data/americas.js"></script>
+  <script src="data/canada.js"></script>
+  <script src="quiz.js?v=10"></script>
 </body>
 </html>
